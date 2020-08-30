@@ -1,0 +1,98 @@
+# Read the Data file 
+
+Data <- read.csv("./activity.csv")
+
+#Get all the basics of Data
+
+summary(Data)
+names(Data)
+head(Data)
+
+library(ggplot2)
+library(lattice)
+# What is the mean total number of steps taken per day
+
+#Total Steps taken
+totalStepsPerDay <- aggregate(steps ~ date, Data, sum, na.rm=TRUE)
+
+# Histogram for totalsteps per day
+png("totalstepperday.png")
+hist(totalStepsPerDay$steps) 
+dev.off()
+
+
+
+# Mean of total steps per day
+mean(totalStepsPerDay$steps)
+
+#Median of total steps per Day
+
+median(totalStepsPerDay$steps)
+
+#Average Daily activity pattern
+
+#Time series plot of 5 minute interval and average number of steps taken averaged across all days
+
+intervalSteps<-aggregate(steps~interval, data=Data, mean, na.rm=TRUE)
+
+png("intervalsteps.png")
+plot(steps~interval, data=intervalSteps, type="l")
+dev.off()
+
+
+#Which 5 min interval has max steps
+
+maxSteps <- intervalSteps[which.max(intervalSteps$steps),]$interval
+maxSteps
+
+# Input missing values
+
+# find the total missing values in the data
+missingValues <- sum(is.na(Data$steps))
+missingValues
+
+# fill in the missing values with mean
+
+getMeanPerInterval<-function(interval){
+    intervalSteps[intervalSteps$interval==interval,]$steps
+}
+
+# Create a new data set
+newData<-Data
+for(i in 1:nrow(newData)){
+    if(is.na(newData[i,]$steps)){
+        newData[i,]$steps <- getMeanPerInterval(newData[i,]$interval)
+    }
+}
+
+# make a histogram of total steps with new data where all the missing values are filled in
+totalStepsPerDayNew <- aggregate(steps ~ date, newData, sum)
+
+png("totalstepwithnewdata.png")
+hist(totalStepsPerDayNew$steps)
+dev.off()
+
+# Calculate the mean and median with new data
+
+meanStepsNewData<- mean(totalStepsPerDayNew$steps)
+medianStepsNewData <- median(totalStepsPerDayNew$steps)
+
+# Difference in activity pattern - weekdays and weekends
+
+newData$date <- as.Date(Data$date)
+newData$day <- weekdays(newData$date)
+for (i in 1:nrow(newData)) {
+    if (newData[i,]$day %in% c("Saturday","Sunday")) {
+        newData[i,]$day<-"weekend"
+    }
+    else{
+        newData[i,]$day<-"weekday"
+    }
+}
+numStepsbyDay <- aggregate(newData$steps ~ newData$interval + newData$day, newData, mean)
+
+# make the panel plot
+
+names(numStepsbyDay) <- c("interval", "day", "steps")
+
+ xyplot(steps ~ interval | day, numStepsbyDay, type = "l",layout = c(1, 2), xlab = "Interval", ylab = "Number of steps")
